@@ -1,0 +1,2 @@
+{:deps {net.mikera/core.matrix {:mvn/version "0.62.0"}
+        io.aviso/pretty {:mvn/version "0.1.34"}}}
