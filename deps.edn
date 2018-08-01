@@ -1,2 +1,2 @@
 {:deps {net.mikera/core.matrix {:mvn/version "0.62.0"}
-        io.aviso/pretty {:mvn/version "0.1.34"}}}
+        incanter/incanter-core {:mvn/version "1.9.3"}}}

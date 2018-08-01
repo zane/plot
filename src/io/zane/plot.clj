@@ -1,12 +1,15 @@
 (ns io.zane.plot
   (:require [clojure.core.matrix :as matrix]
-            [io.aviso.ansi :as ansi]))
+            [incanter.stats :as stats]))
 
 (def braille
   [[\⠁ \⠈]
    [\⠂ \⠐]
    [\⠄ \⠠]
    [\⡀ \⢀]])
+
+(def densities
+  [\space \░ \▒ \▓ \█])
 
 (def box-upper-left \┌)
 (def box-upper-right \┐)
@@ -78,7 +81,30 @@
   (->> m
        (partition height)
        (map #(column-partition width %))
-       (map #(map to-braille %))))
+       (map #(map f %))))
+
+(defn heatmap-char
+  [maximum amount]
+  (let [index (* (/ amount maximum)
+                 (dec (count densities)))]
+    (nth densities index)))
+
+(defn compress-to-heatmap
+  "Returns a two-dimensional matrix of characters where each character is shaded
+  according to the values in the corresponding section of the source matrix."
+  [m]
+  (let [width 2
+        height 4
+        max-density (* width height)]
+    (compress-cells m
+                    height
+                    width
+                    (fn [a]
+                      (let [amount (transduce (comp cat
+                                                    (map #(if % 1 0)))
+                                              +
+                                              a)]
+                        (heatmap-char max-density amount))))))
 
 (defn compress-to-braille
   "Takes a two-dimensional matrix of booleans and compresses it into a smaller
@@ -88,7 +114,7 @@
   (compress-cells m
                   braille-cell-height
                   braille-cell-width
-                  to-braille))
+                  braille-char))
 
 (defn matrix-str
   "Takes a matrix of characters and converts it into a string by adding newlines
@@ -194,16 +220,29 @@
 (defn test-scatter
   []
   (let [canvas (fill (constantly false) 80 40)
-        pts (take 200 (repeatedly #(vector (rand 320)
-                                           (rand 80))))]
+        size 500
+        pts (map vector
+                 (stats/sample-normal size)
+                 (stats/sample-normal size))]
     (->> (points canvas pts)
          (compress-to-braille)
          (box-around)
          (matrix-str)
          (print))))
 
-#_
-(test-plot)
+(defn test-heatmap
+  []
+  (let [canvas (fill (constantly false) 80 40)
+        size 1000
+        pts (map vector
+                 (stats/sample-normal size)
+                 (stats/sample-normal size))]
+    (->> (points canvas pts)
+         (compress-to-heatmap)
+         (box-around)
+         (matrix-str)
+         (print))))
 
-#_
-(test-scatter)
+#_(test-plot)
+#_(test-scatter)
+#_(test-heatmap)
