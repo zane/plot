@@ -148,19 +148,20 @@
   (let [[canvas-height _] (matrix/shape canvas)]
     (/ canvas-height canvas-height)))
 
-(defn canvas-index
-  [cell-count origin size n]
+(defn pixel-index
+  [pixel-count origin pixel-width n]
   (let [distance-from-origin (- n origin)]
     (math/round
-     (* (/ distance-from-origin size)
-        (dec cell-count)))))
+     (* (/ distance-from-origin pixel-width)
+        (dec pixel-count)))))
 
 (defn point
   "Returns the canvas with a point at the provided coordinates."
   [{:keys [origin-x origin-y width height] :as window} canvas x y]
   (let [[cell-height cell-width] (matrix/shape canvas)
-        x-index (canvas-index cell-width origin-x width x)
-        y-index (- cell-height (canvas-index cell-height origin-y height y))]
+        x-index (pixel-index cell-width origin-x width x)
+        y-index (- (dec cell-height)
+                   (pixel-index cell-height origin-y height y))]
     (if-not (in-bounds? canvas [y-index x-index])
       canvas
       (assoc-in canvas [y-index x-index] true))))
@@ -240,9 +241,11 @@
   ([pts compress]
    (plot-points pts compress {}))
   ([pts compress options]
-   (let [defaults {:width 80 :height 40}
+   (let [defaults {:width 40 :height 20}
          {:keys [width height]} (merge defaults options)
-         canvas (fill (constantly false) width height)
+         canvas (fill (constantly false)
+                      (* width braille-cell-width)
+                      (* height braille-cell-height))
          [x-min x-max] (extremes (map first pts))
          [y-min y-max] (extremes (map second pts))]
      (-> canvas
@@ -287,7 +290,17 @@
                       (stats/sample-normal size))
                  compress-to-heatmap)))
 
+(defn test-corners
+  []
+  (plot-points (for [x [0 1]
+                     y [0 1]]
+                 [x y])
+               compress-to-braille
+               {:width 4
+                :height 4}))
+
 #_(test-sin-cos)
 #_(test-pow)
 #_(test-scatter)
 #_(test-heatmap)
+#_(test-corners)
