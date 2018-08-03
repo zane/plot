@@ -127,14 +127,16 @@
              m))
 
 (defn in-bounds?
-  [{:keys [origin-x origin-y width height]
-    :as window}
-   x
-   y]
-  (let [max-x (+ origin-x width)
-        max-y (+ origin-y height)]
-    (and (< origin-x x max-x)
-         (< origin-y y max-y))))
+  "Returns whether a point is in a multidimensional matrix."
+  [m ks]
+  (loop [m m
+         ks ks]
+    (if-not (seq ks)
+      true
+      (let [index (first ks)]
+        (and (<= 0 index (dec (count m)))
+             (recur (nth m index)
+                    (rest ks)))))))
 
 (defn cell-width
   [{window-width :width} canvas]
@@ -156,27 +158,16 @@
 (defn point
   "Returns the canvas with a point at the provided coordinates."
   [{:keys [origin-x origin-y width height] :as window} canvas x y]
-  (if-not (in-bounds? window x y)
-    canvas
-    (let [[cell-height cell-width] (matrix/shape canvas)
-          x-index (canvas-index cell-width origin-x width x)
-          y-index (canvas-index cell-height origin-y height y)]
+  (let [[cell-height cell-width] (matrix/shape canvas)
+        x-index (canvas-index cell-width origin-x width x)
+        y-index (canvas-index cell-height origin-y height y)]
+    (if-not (in-bounds? canvas [y-index x-index])
+      canvas
       (assoc-in canvas [y-index x-index] true))))
 
 (defn points
   "Returns the canvas with points at the provided coordinates."
-  ([canvas ps]
-   (let [min-x (reduce min (map first ps))
-         max-x (reduce max (map first ps))
-         min-y (reduce min (map second ps))
-         max-y (reduce max (map second ps))]
-     (points {:origin-x min-x
-              :origin-y min-y
-              :width (- max-x min-x)
-              :height (- max-y min-y)}
-             canvas
-             ps)))
-  ([window canvas ps]
+  ([canvas window ps]
    (reduce (fn [canvas [x y]]
              (point window canvas x y))
            canvas
@@ -203,46 +194,100 @@
                        (matrix/join-along 0 top m bottom)
                        right-wall)))
 
-(defn test-plot
-  []
-  (let [canvas (fill (constantly false) 80 40)
-        xs (range -2 7 1/100)
-        cos-points (for [x xs]
-                     [x (float (Math/cos x))])
-        sin-points (for [x xs]
-                     [x (float (Math/sin x))])]
-    (->> (points canvas (into cos-points sin-points))
-         (compress-to-braille)
-         (box-around)
+(defn text
+  "Write a string onto a character matrix starting at the provided point and
+  proceeding in the provided direction."
+  [m s x y direction]
+  (let [step (case direction :left dec, :right inc, :up inc, :down dec)
+        dimension (case direction :left 1, :right 1, :up 0, :down 0)
+        [height width] (matrix/shape m)]
+    (loop [m m
+           s (cond-> s (contains? #{:left :up} direction) reverse)
+           point [y x]]
+      (if-not (and (in-bounds? m point)
+                   (seq s))
+        m
+        (recur (assoc-in m point (first s))
+               (rest s)
+               (update point dimension step))))))
+
+(defn y-axis
+  "Generates a y-axis from labels."
+  [height y-min y-max]
+  (let [formatter #(format "%.2f" (float %))
+        y-min-str (formatter y-min)
+        y-max-str (formatter y-max)
+        width (reduce max (map count [y-min-str y-max-str]))]
+    (-> (fill (constantly \space) width height)
+        (text y-max-str (dec width) 1 :left)
+        (text y-min-str (dec width) (dec (dec height)) :left))))
+
+(defn attach-y-axis
+  "Attaches y-axis labels to a matrix."
+  [m y-min y-max]
+  (let [height (count m)
+        axis (y-axis height y-min y-max)]
+    (matrix/join-along 1 axis m)))
+
+(defn extremes
+  "Returns a 2-tuple of the minimum and maximum values in the provided sequence."
+  [xs]
+  [(reduce min xs)
+   (reduce max xs)])
+
+(defn plot-points
+  "Generates a plot from the provided data."
+  ([pts compress]
+   (plot-points pts compress {}))
+  ([pts compress options]
+   (let [defaults {:width 80 :height 40}
+         {:keys [width height]} (merge defaults options)
+         canvas (fill (constantly false) width height)
+         [x-min x-max] (extremes (map first pts))
+         [y-min y-max] (extremes (map second pts))]
+     (-> canvas
+         (points {:origin-x x-min
+                  :origin-y y-min
+                  :width (- x-max x-min)
+                  :height (- y-max y-min)}
+                 pts)
+         compress
+         box-around
+         (attach-y-axis y-min y-max)
          (matrix-str)
-         (print))))
+         (print)))))
+
+(defn test-sin-cos
+  []
+  (plot-points (mapcat (fn [x]
+                         [[x (Math/cos x)]
+                          [x (Math/sin x)]])
+                       (range -2 7 1/100))
+               compress-to-braille))
+
+(defn test-pow
+  []
+  (plot-points (for [x (range -5 5 1/25)]
+                 [x (float (* x x))])
+               compress-to-braille))
 
 (defn test-scatter
   []
-  (let [canvas (fill (constantly false) 80 40)
-        size 500
-        pts (map vector
-                 (stats/sample-normal size)
-                 (stats/sample-normal size))]
-    (->> (points canvas pts)
-         (compress-to-braille)
-         (box-around)
-         (matrix-str)
-         (print))))
+  (let [size 500]
+    (plot-points (map vector
+                      (stats/sample-normal size)
+                      (stats/sample-normal size))
+                 compress-to-braille)))
 
 (defn test-heatmap
   []
-  (let [canvas (fill (constantly false) 80 40)
-        size 1000
-        pts (map vector
-                 (stats/sample-normal size)
-                 (stats/sample-normal size))]
-    (->> (points canvas pts)
-         (compress-to-heatmap)
-         (box-around)
-         (matrix-str)
-         (print))))
+  (let [size 1000]
+    (plot-points (map vector
+                      (stats/sample-normal size)
+                      (stats/sample-normal size))
+                 compress-to-heatmap)))
 
-#_(test-plot)
+#_(test-sin-cos)
+#_(test-pow)
 #_(test-scatter)
 #_(test-heatmap)
