@@ -212,23 +212,44 @@
                (rest s)
                (update point dimension step))))))
 
+(defn x-axis
+  "Generates a y-axis from labels."
+  [width x-min x-max formatter]
+  (let [x-min-str (formatter x-min)
+        x-max-str (formatter x-max)
+        height 1]
+    (-> (fill (constantly \space) width height)
+        (text x-min-str (inc 0) 0 :right)
+        (text x-max-str (- width 2) 0 :left))))
+
 (defn y-axis
   "Generates a y-axis from labels."
-  [height y-min y-max]
-  (let [formatter #(format "%.2f" (float %))
-        y-min-str (formatter y-min)
+  [height y-min y-max formatter]
+  (let [y-min-str (formatter y-min)
         y-max-str (formatter y-max)
         width (reduce max (map count [y-min-str y-max-str]))]
-    (-> (fill (constantly \space) width height)
+    (-> (fill (constantly \space)
+              width
+              height)
         (text y-max-str (dec width) 1 :left)
         (text y-min-str (dec width) (dec (dec height)) :left))))
 
-(defn attach-y-axis
+(defn attach-axes
   "Attaches y-axis labels to a matrix."
-  [m y-min y-max]
-  (let [height (count m)
-        axis (y-axis height y-min y-max)]
-    (matrix/join-along 1 axis m)))
+  [m x-min x-max y-min y-max]
+  (let [formatter #(format "%.2f" (float %))
+        [height width] (matrix/shape m)
+        y-axis-m (y-axis height y-min y-max formatter)
+        [_ y-axis-width] (matrix/shape y-axis-m)
+        x-axis-m (x-axis width x-min x-max formatter)
+        [x-axis-height _] (matrix/shape x-axis-m)]
+    (matrix/join-along 0
+                       (matrix/join-along 1 y-axis-m m)
+                       (matrix/join-along 1
+                                          (fill (constantly \space)
+                                                y-axis-width
+                                                x-axis-height)
+                                          x-axis-m))))
 
 (defn extremes
   "Returns a 2-tuple of the minimum and maximum values in the provided sequence."
@@ -256,7 +277,7 @@
                  pts)
          compress
          box-around
-         (attach-y-axis y-min y-max)
+         (attach-axes x-min x-max y-min y-max)
          (matrix-str)
          (print)))))
 
