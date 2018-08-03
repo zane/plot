@@ -1,5 +1,6 @@
 (ns io.zane.plot
   (:require [clojure.core.matrix :as matrix]
+            [clojure.math.numeric-tower :as math]
             [incanter.stats :as stats]))
 
 (def braille
@@ -146,21 +147,20 @@
     (/ canvas-height canvas-height)))
 
 (defn canvas-index
-  [{:keys [origin-x origin-y width height] :as window} canvas dimension n]
-  (let [cell-size (nth (matrix/shape canvas) dimension)]
-    (int (Math/floor (* (/ (- n
-                              (nth [origin-y origin-x] dimension))
-                           (nth [height width] dimension))
-                        cell-size)))))
+  [cell-count origin size n]
+  (let [distance-from-origin (- n origin)]
+    (math/round
+     (* (/ distance-from-origin size)
+        (dec cell-count)))))
 
 (defn point
   "Returns the canvas with a point at the provided coordinates."
-  [window canvas x y]
+  [{:keys [origin-x origin-y width height] :as window} canvas x y]
   (if-not (in-bounds? window x y)
     canvas
     (let [[cell-height cell-width] (matrix/shape canvas)
-          x-index (canvas-index window canvas 1 x)
-          y-index (canvas-index window canvas 0 y)]
+          x-index (canvas-index cell-width origin-x width x)
+          y-index (canvas-index cell-height origin-y height y)]
       (assoc-in canvas [y-index x-index] true))))
 
 (defn points
