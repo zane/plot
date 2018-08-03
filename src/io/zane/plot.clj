@@ -160,7 +160,7 @@
   [{:keys [origin-x origin-y width height] :as window} canvas x y]
   (let [[cell-height cell-width] (matrix/shape canvas)
         x-index (canvas-index cell-width origin-x width x)
-        y-index (canvas-index cell-height origin-y height y)]
+        y-index (- cell-height (canvas-index cell-height origin-y height y))]
     (if-not (in-bounds? canvas [y-index x-index])
       canvas
       (assoc-in canvas [y-index x-index] true))))
@@ -267,7 +267,7 @@
 
 (defn test-pow
   []
-  (plot-points (for [x (range -5 5 1/25)]
+  (plot-points (for [x (range 0 10 1/25)]
                  [x (float (* x x))])
                compress-to-braille))
 
