@@ -1,5 +1,6 @@
 (ns io.zane.plot.compress.braille
   (:require [clojure.core.matrix :as matrix]
+            [io.zane.plot.ansi :as ansi]
             [io.zane.plot.compress :as compress]))
 
 (def pattern
@@ -24,7 +25,7 @@
                              (int b))))))
 
 (defn character
-  "Takes a two-dimensional width 2 height 4 array of booleans and produces from it
+  "Takes a two-dimensional width 2 height 4 array of colors and produces from it
   the corresponding braille character."
   [grid]
   (transduce (comp (map-indexed
@@ -40,6 +41,14 @@
              \space
              grid))
 
+(defn color
+  "Returns a color representing the blend of all the colors in matrix m."
+  [m]
+  (transduce cat
+             (completing ansi/mix)
+             ::ansi/default
+             m))
+
 (defn compress
   "Takes a two-dimensional matrix of booleans and compresses it into a smaller
   matrix of braille characters. The resulting matrix will be half as wide and
@@ -48,4 +57,5 @@
   (compress/compress-cells m
                            cell-height
                            cell-width
-                           character))
+                           character
+                           color))

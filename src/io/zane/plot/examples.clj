@@ -1,22 +1,26 @@
 (ns io.zane.plot.examples
-  (:require [incanter.stats :as stats]
+  (:require [clojure.math.numeric-tower :as math]
+            [incanter.stats :as stats]
             [io.zane.plot :as plot]
             [io.zane.plot.compress.braille :as braille]
             [io.zane.plot.compress.heatmap :as heatmap]))
 
 (defn trig
   []
-  (plot/draw (mapcat (fn [x]
-                       [[x (Math/cos x)]
-                        [x (Math/sin x)]])
-                     (range -2 7 1/100))
-             braille/compress))
+  (plot/draw-functions braille/compress 
+                       (range -2 14 1/100)
+                       #(Math/cos %)
+                       #(Math/sin %)
+                       #(- (/ % 8)
+                           1)))
 
 (defn pow
   []
-  (plot/draw (for [x (range 0 10 1/25)]
-               [x (float (* x x))])
-             braille/compress))
+  (plot/draw-functions braille/compress
+                       (range 0 10 1/25)
+                       #(math/expt % 1.5)
+                       #(math/expt % 2)
+                       #(math/expt % 2.5)))
 
 (defn scatter
   []
