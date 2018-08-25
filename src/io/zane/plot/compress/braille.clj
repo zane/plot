@@ -3,6 +3,8 @@
             [io.zane.plot.ansi :as ansi]
             [io.zane.plot.compress :as compress]))
 
+(def blank \⠀)
+
 (def pattern
   [[\⠁ \⠈]
    [\⠂ \⠐]
@@ -19,8 +21,8 @@
   ([a]
    a)
   ([a b]
-   (cond (= \space a) b
-         (= \space b) a
+   (cond (= blank a) b
+         (= blank b) a
          :else (char (bit-or (int a)
                              (int b))))))
 
@@ -34,11 +36,11 @@
                        (fn [x cell]
                          (if cell
                            (get-in pattern [y x])
-                           \space))
+                           blank))
                        row)))
                    cat)
              union
-             \space
+             blank
              grid))
 
 (defn color
